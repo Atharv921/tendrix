@@ -56,8 +56,8 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { Resend }  from 'resend';
-import { google }  from 'googleapis';
+const { Resend } = require('resend');
+const { google } = require('googleapis');
 
 // ── Clients ──────────────────────────────────────────────────────────────────
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -78,13 +78,22 @@ function getSheetsClient() {
 const seen = new Set();
 
 // ── Handler ───────────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email, source } = req.body || {};
+  let body = req.body || {};
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = {};
+    }
+  }
+
+  const { email, source } = body;
 
   // Validate
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

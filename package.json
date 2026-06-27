@@ -2,5 +2,10 @@
   "dependencies": {
     "googleapis": "133.0.0",
     "resend": "6.3.0"
-  }
+  },
+  "scripts": {
+    "deploy": "vercel --prod"
+  },
+  "private": "true",
+  "type": "commonjs"
 }
