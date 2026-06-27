@@ -74,6 +74,13 @@ function getSheetsClient() {
   return google.sheets({ version: 'v4', auth });
 }
 
+function normalizeSheetId(value) {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const match = trimmed.match(/\/d\/([^/?#]+)/);
+  return match ? match[1] : trimmed;
+}
+
 // ── Dedup (within one warm serverless instance — cold starts reset, that's fine) ──
 const seen = new Set();
 
@@ -119,7 +126,7 @@ module.exports = async function handler(req, res) {
     hour12:     true,
   });
   const founderEmail = process.env.FOUNDER_EMAIL || 'atharv@tendrix.in';
-  const sheetId      = process.env.GOOGLE_SHEET_ID;
+  const sheetId      = normalizeSheetId(process.env.GOOGLE_SHEET_ID);
 
   // ── Run all three in parallel ─────────────────────────────────────────────
   const [sheetsResult, notifyResult, confirmResult] = await Promise.allSettled([
@@ -238,9 +245,14 @@ module.exports = async function handler(req, res) {
   if (!notifyOk)  console.error('[subscribe] Notify email failed:', notifyResult.reason);
   if (!confirmOk) console.error('[subscribe] Confirm email failed:', confirmResult.reason);
 
-  // Return success as long as at least the sheet write OR one email went through
-  // (don't fail the user's experience over a partial backend issue)
-  if (!sheetOk && !notifyOk && !confirmOk) {
+  if (!sheetOk) {
+    return res.status(500).json({
+      error: 'Signup could not be saved to the sheet. Please try again later.',
+      help: `Share the Google Sheet with ${process.env.GOOGLE_CLIENT_EMAIL || 'your service account email'} as Editor.`,
+    });
+  }
+
+  if (!notifyOk && !confirmOk) {
     return res.status(500).json({ error: 'All downstream calls failed' });
   }
 
